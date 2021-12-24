@@ -3,7 +3,7 @@
 
 import base64
 
-from odoo import http,tools, _
+from odoo import http, tools, _
 from odoo.http import request
 from odoo.addons.base.models.assetsbundle import AssetsBundle
 

@@ -1,10 +1,24 @@
 # -*- coding: utf-8 -*-
 # Part of Odoo. See LICENSE file for full copyright and licensing details.
 
+import calendar
 import itertools
-import random
+import json
+import logging
 
-from odoo import models, _
+import pytz
+import requests
+from markdown2 import Markdown
+
+from odoo import models
+
+PARSE_MESSAGE_URL = "http://192.168.9.51:5005/model/parse"
+ADD_MESSAGE_URL = "http://192.168.9.51:5005/conversations/{}/messages"
+ADD_EVENT_URL = "http://localhost:5005/conversations/{}/tracker/events"
+PREDICT_NEXT_ACTION_URL = "http://192.168.9.51:5005/conversations/{}/predict"
+RUN_ACTION_URL = "http://192.168.9.51:5005/conversations/{}/execute?output_channel=latest"
+markdowner = Markdown()
+_logger = logging.getLogger(__name__)
 
 
 class MailBot(models.AbstractModel):
@@ -30,63 +44,198 @@ class MailBot(models.AbstractModel):
             if answer:
                 message_type = values.get('message_type', 'comment')
                 subtype_id = values.get('subtype_id', self.env['ir.model.data']._xmlid_to_res_id('mail.mt_comment'))
-                record.with_context(mail_create_nosubscribe=True).sudo().message_post(body=answer, author_id=odoobot_id, message_type=message_type, subtype_id=subtype_id)
+                record.with_context(mail_create_nosubscribe=True).sudo().message_post(body=answer, author_id=odoobot_id,
+                                                                                      message_type=message_type,
+                                                                                      subtype_id=subtype_id)
 
     def _get_answer(self, record, body, values, command=False):
-        # onboarding
-        odoobot_state = self.env.user.odoobot_state
         if self._is_bot_in_private_channel(record):
             # main flow
-            if odoobot_state == 'onboarding_emoji' and self._body_contains_emoji(body):
-                self.env.user.odoobot_state = "onboarding_command"
-                self.env.user.odoobot_failed = False
-                return _("Great! 👍<br/>To access special commands, <b>start your sentence with</b> <span class=\"o_odoobot_command\">/</span>. Try getting help.")
-            elif odoobot_state == 'onboarding_command' and command == 'help':
-                self.env.user.odoobot_state = "onboarding_ping"
-                self.env.user.odoobot_failed = False
-                return _("Wow you are a natural!<br/>Ping someone with @username to grab their attention. <b>Try to ping me using</b> <span class=\"o_odoobot_command\">@OdooBot</span> in a sentence.")
-            elif odoobot_state == 'onboarding_ping' and self._is_bot_pinged(values):
-                self.env.user.odoobot_state = "onboarding_attachement"
-                self.env.user.odoobot_failed = False
-                return _("Yep, I am here! 🎉 <br/>Now, try <b>sending an attachment</b>, like a picture of your cute dog...")
-            elif odoobot_state == 'onboarding_attachement' and values.get("attachment_ids"):
-                self.env.user.odoobot_state = "idle"
-                self.env.user.odoobot_failed = False
-                return _("I am a simple bot, but if that's a dog, he is the cutest 😊 <br/>Congratulations, you finished this tour. You can now <b>close this chat window</b>. Enjoy discovering Odoo.")
-            elif odoobot_state in (False, "idle", "not_initialized") and (_('start the tour') in body.lower()):
-                self.env.user.odoobot_state = "onboarding_emoji"
-                return _("To start, try to send me an emoji :)")
-            # easter eggs
-            elif odoobot_state == "idle" and body in ['❤️', _('i love you'), _('love')]:
-                return _("Aaaaaw that's really cute but, you know, bots don't work that way. You're too human for me! Let's keep it professional ❤️")
-            elif _('fuck') in body or "fuck" in body:
-                return _("That's not nice! I'm a bot but I have feelings... 💔")
-            # help message
-            elif self._is_help_requested(body) or odoobot_state == 'idle':
-                return _("Unfortunately, I'm just a bot 😞 I don't understand! If you need help discovering our product, please check "
-                         "<a href=\"https://www.odoo.com/documentation\" target=\"_blank\">our documentation</a> or "
-                         "<a href=\"https://www.odoo.com/slides\" target=\"_blank\">our videos</a>.")
-            else:
-                # repeat question
-                if odoobot_state == 'onboarding_emoji':
-                    self.env.user.odoobot_failed = True
-                    return _("Not exactly. To continue the tour, send an emoji: <b>type</b> <span class=\"o_odoobot_command\">:)</span> and press enter.")
-                elif odoobot_state == 'onboarding_attachement':
-                    self.env.user.odoobot_failed = True
-                    return _("To <b>send an attachment</b>, click on the <i class=\"fa fa-paperclip\" aria-hidden=\"true\"></i> icon and select a file.")
-                elif odoobot_state == 'onboarding_command':
-                    self.env.user.odoobot_failed = True
-                    return _("Not sure what you are doing. Please, type <span class=\"o_odoobot_command\">/</span> and wait for the propositions. Select <span class=\"o_odoobot_command\">help</span> and press enter")
-                elif odoobot_state == 'onboarding_ping':
-                    self.env.user.odoobot_failed = True
-                    return _("Sorry, I am not listening. To get someone's attention, <b>ping him</b>. Write <span class=\"o_odoobot_command\">@OdooBot</span> and select me.")
-                return random.choice([
-                    _("I'm not smart enough to answer your question.<br/>To follow my guide, ask: <span class=\"o_odoobot_command\">start the tour</span>."),
-                    _("Hmmm..."),
-                    _("I'm afraid I don't understand. Sorry!"),
-                    _("Sorry I'm sleepy. Or not! Maybe I'm just trying to hide my unawareness of human language...<br/>I can show you features if you write: <span class=\"o_odoobot_command\">start the tour</span>.")
-                ])
+            try:
+                parsed_message = self._request_parse_message(body, record)
+                if parsed_message is None:
+                    return False
+                self._request_add_message_to_tracker(parsed_message, body, values)
+                action_name, policy, confidence = self._request_predict_the_next_action(values)
+                while action_name == "action_listen":
+                    _ = self._request_run_an_action_in_a_conversation(action_name, policy, confidence, values)
+                    _logger.info(f"Failed to add {body} in tracker store. Try to add again ...")
+                    self._request_add_message_to_tracker(parsed_message, body, values)
+                    action_name, policy, confidence = self._request_predict_the_next_action(values)
+                if not (action_name and policy and confidence):
+                    return False
+                else:
+                    messages = self._request_run_an_action_in_a_conversation(action_name, policy, confidence, values)
+                    if messages is None:
+                        return False
+                    else:
+                        if any(["image" in message.keys() for message in messages]):
+                            html_answer_string = ""
+                            for message in messages:
+                                if "text" in message.keys():
+                                    html_answer_string += markdowner.convert(message["text"].replace("\n", "\n \n"))
+                                    html_answer_string += "<br></br>"
+                                if "image" in message.keys():
+                                    html_answer_string += f"<span><img src=\"{message['image']}\" " \
+                                                          f"alt=\"Italian Trulli\" width=\"300\" height=\"200\">" \
+                                                          f"</span>"
+                                    html_answer_string += "<br></br> <br></br>"
+                            return html_answer_string
+                        return "<br></br>".join([markdowner.convert(message["text"].replace("\n", "\n \n"))
+                                                 for message in messages if "text" in message.keys()])
+            except:
+                return False
         return False
+
+    @staticmethod
+    def datetime2timestamp(dt, location="Asia/Ho_Chi_Minh"):
+        """
+        This method used to convert datetime to timestamp
+        """
+        mytz = pytz.timezone(location)  # Set your timezone
+
+        dt = mytz.normalize(mytz.localize(dt, is_dst=True))
+        return calendar.timegm(dt.utctimetuple())
+
+    def _request_parse_message(self, body, record):
+        """
+        This method used to parse a message by request to RASA http API
+        """
+        try:
+            url = PARSE_MESSAGE_URL
+            payload = json.dumps({
+                "text": body,
+                "message_id": record.message_ids.ids[0]
+            })
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return None
+        except:
+            return None
+
+    def _request_add_message_to_tracker(self, parsed_message, body, values):
+        """
+        This method used to add a message parsed to tracker store.
+        """
+        try:
+            url = ADD_MESSAGE_URL.format(values['author_id'])
+
+            payload = json.dumps({
+                "text": body,
+                "sender": "user",
+                "parse_data": parsed_message
+            })
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return None
+        except:
+            return None
+
+    def _request_predict_the_next_action(self, values):
+        """
+        This method used to predict the next action by RASA
+        """
+        try:
+            url = PREDICT_NEXT_ACTION_URL.format(values['author_id'])
+            response = requests.request("POST", url)
+            if response.status_code == 200:
+                response = response.json()
+                return response["scores"][0]["action"], response["policy"], response["confidence"]
+            else:
+                return None, None, None
+        except:
+            return None, None, None
+
+    def _request_run_an_action_in_a_conversation(self, action_name, policy, confidence, values):
+        """
+        This method used to run a action in a conversation.
+        """
+
+        try:
+            url = RUN_ACTION_URL.format(values['author_id'])
+
+            payload = json.dumps({
+                "name": action_name,
+                "policy": policy,
+                "confidence": confidence
+            })
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                response = response.json()
+                return response["messages"]
+            else:
+                return None
+        except:
+            return None
+
+    def _request_append_action_listen_to_a_tracker(self):
+        """
+        This method used to append a action listen to the tracker store.
+        """
+        try:
+            url = ADD_EVENT_URL
+
+            payload = json.dumps([
+                {
+                    "event": "action",
+                    "name": "action_listen"
+                }
+            ])
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                response = response.json()
+                return response["messages"]
+            else:
+                return None
+        except:
+            return None
+
+    def _request_append_events_to_a_tracker(self, events, type_event):
+        """
+        This method used to append a event or events to the tracker store.
+        """
+        try:
+            url = ADD_EVENT_URL
+
+            payload = json.dumps([
+                {
+                    "event": "action",
+                    "name": "action_listen",
+                    "policy": "policy_0_RulePolicy",
+                }
+            ])
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.request("POST", url, headers=headers, data=payload)
+            if response.status_code == 200:
+                response = response.json()
+                return response["messages"]
+            else:
+                return None
+        except:
+            return None
 
     def _body_contains_emoji(self, body):
         # coming from https://unicode.org/emoji/charts/full-emoji-list.html
@@ -210,11 +359,16 @@ class MailBot(models.AbstractModel):
             range(0x1F9E7, 0x1fa00),
             [0x2328, 0x23cf, 0x24c2, 0x25b6, 0x25c0, 0x260e, 0x2611, 0x2618, 0x261d, 0x2620, 0x2626,
              0x262a, 0x2640, 0x2642, 0x2663, 0x2668, 0x267b, 0x2699, 0x26c8, 0x26ce, 0x26cf,
-             0x26d1, 0x26fd, 0x2702, 0x2705, 0x270f, 0x2712, 0x2714, 0x2716, 0x271d, 0x2721, 0x2728, 0x2744, 0x2747, 0x274c,
-             0x274e, 0x2757, 0x27a1, 0x27b0, 0x27bf, 0x2b50, 0x2b55, 0x3030, 0x303d, 0x3297, 0x3299, 0x1f004, 0x1f0cf, 0x1f17e,
-             0x1f17f, 0x1f18e, 0x1f21a, 0x1f22f, 0x1f321, 0x1f336, 0x1f37d, 0x1f3c5, 0x1f3f7, 0x1f43f, 0x1f440, 0x1f441, 0x1f4f8,
-             0x1f4fd, 0x1f4ff, 0x1f57a, 0x1f587, 0x1f590, 0x1f5a4, 0x1f5a5, 0x1f5a8, 0x1f5bc, 0x1f5e1, 0x1f5e3, 0x1f5e8, 0x1f5ef,
-             0x1f5f3, 0x1f5fa, 0x1f600, 0x1f611, 0x1f615, 0x1f616, 0x1f617, 0x1f618, 0x1f619, 0x1f61a, 0x1f61b, 0x1f61f, 0x1f62c,
+             0x26d1, 0x26fd, 0x2702, 0x2705, 0x270f, 0x2712, 0x2714, 0x2716, 0x271d, 0x2721, 0x2728, 0x2744, 0x2747,
+             0x274c,
+             0x274e, 0x2757, 0x27a1, 0x27b0, 0x27bf, 0x2b50, 0x2b55, 0x3030, 0x303d, 0x3297, 0x3299, 0x1f004, 0x1f0cf,
+             0x1f17e,
+             0x1f17f, 0x1f18e, 0x1f21a, 0x1f22f, 0x1f321, 0x1f336, 0x1f37d, 0x1f3c5, 0x1f3f7, 0x1f43f, 0x1f440, 0x1f441,
+             0x1f4f8,
+             0x1f4fd, 0x1f4ff, 0x1f57a, 0x1f587, 0x1f590, 0x1f5a4, 0x1f5a5, 0x1f5a8, 0x1f5bc, 0x1f5e1, 0x1f5e3, 0x1f5e8,
+             0x1f5ef,
+             0x1f5f3, 0x1f5fa, 0x1f600, 0x1f611, 0x1f615, 0x1f616, 0x1f617, 0x1f618, 0x1f619, 0x1f61a, 0x1f61b, 0x1f61f,
+             0x1f62c,
              0x1f62d, 0x1f634, 0x1f6d0, 0x1f6e9, 0x1f6f0, 0x1f6f3, 0x1f6f9, 0x1f91f, 0x1f930, 0x1f94c, 0x1f97a, 0x1f9c0]
         )
         if any(chr(emoji) in body for emoji in emoji_list):
@@ -235,4 +389,4 @@ class MailBot(models.AbstractModel):
         """Returns whether a message linking to the documentation and videos
         should be sent back to the user.
         """
-        return any(token in body for token in ['help', _('help'), '?']) or self.env.user.odoobot_failed
+        return any(token in body for token in ['help', '?']) or self.env.user.odoobot_failed
