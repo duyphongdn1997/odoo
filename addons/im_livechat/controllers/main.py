@@ -14,7 +14,7 @@ class LivechatController(http.Controller):
     # to be embedded in an external website.
 
     @http.route('/im_livechat/external_lib.<any(css,js):ext>', type='http', auth='public')
-    def livechat_lib(self, ext, **kwargs):
+    def livechat_lib(self, ext):
         # _get_asset return the bundle html code (script and link list) but we want to use the attachment content
         bundle = 'im_livechat.external_lib'
         files, _ = request.env["ir.qweb"]._get_asset_content(bundle)
@@ -30,15 +30,14 @@ class LivechatController(http.Controller):
         return request.make_response(content_base64, headers)
 
     @http.route('/im_livechat/load_templates', type='json', auth='none', cors="*")
-    def load_templates(self, **kwargs):
-        base_url = request.httprequest.base_url
+    def load_templates(self):
         templates = [
             'im_livechat/static/src/legacy/public_livechat.xml',
         ]
         return [tools.file_open(tmpl, 'rb').read() for tmpl in templates]
 
     @http.route('/im_livechat/support/<int:channel_id>', type='http', auth='public')
-    def support_page(self, channel_id, **kwargs):
+    def support_page(self, channel_id):
         channel = request.env['im_livechat.channel'].sudo().browse(channel_id)
         return request.render('im_livechat.support_page', {'channel': channel})
 
@@ -47,7 +46,8 @@ class LivechatController(http.Controller):
         username = kwargs.get("username", _("Visitor"))
         channel = request.env['im_livechat.channel'].sudo().browse(channel_id)
         info = channel.get_livechat_info(username=username)
-        return request.render('im_livechat.loader', {'info': info, 'web_session_required': True}, headers=[('Content-Type', 'application/javascript')])
+        return request.render('im_livechat.loader', {'info': info, 'web_session_required': True},
+                              headers=[('Content-Type', 'application/javascript')])
 
     @http.route('/im_livechat/init', type='json', auth="public", cors="*")
     def livechat_init(self, channel_id):
@@ -75,10 +75,11 @@ class LivechatController(http.Controller):
         }
 
     @http.route('/im_livechat/get_session', type="json", auth='public', cors="*")
-    def get_session(self, channel_id, anonymous_name, previous_operator_id=None, **kwargs):
+    def get_session(self, channel_id, anonymous_name, previous_operator_id=None):
         user_id = None
         country_id = None
-        # if the user is identifiy (eg: portal user on the frontend), don't use the anonymous name. The user will be added to session.
+        # if the user is identifiy (eg: portal user on the frontend),
+        # don't use the anonymous name. The user will be added to session.
         if request.session.uid:
             user_id = request.env.user.id
             country_id = request.env.user.country_id.id
@@ -87,7 +88,8 @@ class LivechatController(http.Controller):
             if request.session.geoip:
                 # get the country of the anonymous person, if any
                 country_code = request.session.geoip.get('country_code', "")
-                country = request.env['res.country'].sudo().search([('code', '=', country_code)], limit=1) if country_code else None
+                country = request.env['res.country'].sudo().search([('code', '=', country_code)],
+                                                                   limit=1) if country_code else None
                 if country:
                     anonymous_name = "%s (%s)" % (anonymous_name, country.name)
                     country_id = country.id
@@ -95,10 +97,11 @@ class LivechatController(http.Controller):
         if previous_operator_id:
             previous_operator_id = int(previous_operator_id)
 
-        return request.env["im_livechat.channel"].with_context(lang=False).sudo().browse(channel_id)._open_livechat_mail_channel(anonymous_name, previous_operator_id, user_id, country_id)
+        return request.env["im_livechat.channel"].with_context(lang=False).sudo().browse(
+            channel_id)._open_livechat_mail_channel(anonymous_name, previous_operator_id, user_id, country_id)
 
     @http.route('/im_livechat/feedback', type='json', auth='public', cors="*")
-    def feedback(self, uuid, rate, reason=None, **kwargs):
+    def feedback(self, uuid, rate, reason=None):
         channel = request.env['mail.channel'].sudo().search([('uuid', '=', uuid)], limit=1)
         if channel:
             # limit the creation : only ONE rating per session
@@ -129,7 +132,8 @@ class LivechatController(http.Controller):
     @http.route('/im_livechat/history', type="json", auth="public", cors="*")
     def history_pages(self, pid, channel_uuid, page_history=None):
         partner_ids = (pid, request.env.user.partner_id.id)
-        channel = request.env['mail.channel'].sudo().search([('uuid', '=', channel_uuid), ('channel_partner_ids', 'in', partner_ids)])
+        channel = request.env['mail.channel'].sudo().search(
+            [('uuid', '=', channel_uuid), ('channel_partner_ids', 'in', partner_ids)])
         if channel:
             channel._send_history_message(pid, page_history)
         return True
@@ -160,3 +164,21 @@ class LivechatController(http.Controller):
         mail_channel = request.env['mail.channel'].sudo().search([('uuid', '=', uuid)])
         if mail_channel:
             mail_channel._close_livechat_session()
+
+    @http.route('/im_livechat/chatbot', type='http', auth='public')
+    def support_page(self, **kwargs):
+        user_id = None
+        country_id = None
+        if request.session.uid:
+            user_id = request.env.user.id
+            country_id = request.env.user.country_id.id
+        channel_info = request.env["im_livechat.channel"].with_context(lang=False).sudo().browse(
+            1)._open_livechat_mail_channel("", None, user_id, country_id)
+        if not channel_info:
+            sender_id = "Visitor"
+            title_box = "Javisbe - Visitor"
+        else:
+            sender_id = channel_info["members"][0]["name"]
+            title_box = channel_info["name"]
+        return request.render('im_livechat.support_page', {"sender_id": sender_id, "channel": 1,
+                                                           "title": title_box})

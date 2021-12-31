@@ -7,7 +7,7 @@ from odoo.tools import html_escape
 
 class MailChannel(models.Model):
     """ Chat Session
-        Reprensenting a conversation between users.
+        Representing a conversation between users.
         It extends the base method for anonymous usage.
     """
 
@@ -16,12 +16,15 @@ class MailChannel(models.Model):
 
     anonymous_name = fields.Char('Anonymous Name')
     channel_type = fields.Selection(selection_add=[('livechat', 'Livechat Conversation')])
-    livechat_active = fields.Boolean('Is livechat ongoing?', help='Livechat session is active until visitor leave the conversation.')
+    livechat_active = fields.Boolean('Is livechat ongoing?',
+                                     help='Livechat session is active until visitor leave the conversation.')
     livechat_channel_id = fields.Many2one('im_livechat.channel', 'Channel')
-    livechat_operator_id = fields.Many2one('res.partner', string='Operator', help="""Operator for this specific channel""")
+    livechat_operator_id = fields.Many2one('res.partner', string='Operator', help="Operator for this specific channel")
     country_id = fields.Many2one('res.country', string="Country", help="Country of the visitor of the channel")
 
-    _sql_constraints = [('livechat_operator_id', "CHECK((channel_type = 'livechat' and livechat_operator_id is not null) or (channel_type != 'livechat'))",
+    _sql_constraints = [('livechat_operator_id',
+                         "CHECK((channel_type = 'livechat' "
+                         "and livechat_operator_id is not null) or (channel_type != 'livechat'))",
                          'Livechat Operator ID is required for a channel of type livechat.')]
 
     def _compute_is_chat(self):
@@ -31,14 +34,17 @@ class MailChannel(models.Model):
                 record.is_chat = True
 
     def _channel_message_notifications(self, message, message_format=False):
-        """ When a anonymous user create a mail.channel, the operator is not notify (to avoid massive polling when
-            clicking on livechat button). So when the anonymous person is sending its FIRST message, the channel header
-            should be added to the notification, since the user cannot be listining to the channel.
+        """ When a anonymous user create a mail. Channel, the operator is not notify (to avoid massive polling when
+            clicking on livechat button). So when the anonymous person is sending it's FIRST message, the channel header
+            should be added to the notification, since the user cannot be listening to the channel.
         """
         livechat_channels = self.filtered(lambda x: x.channel_type == 'livechat')
         other_channels = self.filtered(lambda x: x.channel_type != 'livechat')
-        notifications = super(MailChannel, livechat_channels)._channel_message_notifications(message.with_context(im_livechat_use_username=True)) + \
-                        super(MailChannel, other_channels)._channel_message_notifications(message, message_format)
+        notifications = super(MailChannel,
+                              livechat_channels)._channel_message_notifications(
+            message.with_context(im_livechat_use_username=True)) + \
+                        super(MailChannel,
+                              other_channels)._channel_message_notifications(message, message_format)
         for channel in self:
             # add uuid for private livechat channels to allow anonymous to listen
             if channel.channel_type == 'livechat' and channel.public == 'private':
@@ -47,7 +53,8 @@ class MailChannel(models.Model):
             unpinned_channel_partner = self.channel_last_seen_partner_ids.filtered(lambda cp: not cp.is_pinned)
             if unpinned_channel_partner:
                 unpinned_channel_partner.write({'is_pinned': True})
-                notifications = self._channel_channel_notifications(unpinned_channel_partner.mapped('partner_id').ids) + notifications
+                notifications = self._channel_channel_notifications(unpinned_channel_partner.mapped('partner_id').ids) \
+                                + notifications
         return notifications
 
     def _channel_fetch_message(self, last_id=False, limit=20):
@@ -81,7 +88,8 @@ class MailChannel(models.Model):
             # operator probably testing the livechat with his own user
             partners = channel_partner_ids
         first_partner = partners and partners[0]
-        if first_partner and (not first_partner.user_ids or not any(user._is_public() for user in first_partner.user_ids)):
+        if first_partner and (not first_partner.user_ids or
+                              not any(user._is_public() for user in first_partner.user_ids)):
             # legit non-public partner
             return {
                 'country': first_partner.country_id.name_get()[0] if first_partner.country_id else False,
@@ -137,7 +145,8 @@ class MailChannel(models.Model):
     def _send_history_message(self, pid, page_history):
         message_body = _('No history found')
         if page_history:
-            html_links = ['<li><a href="%s" target="_blank">%s</a></li>' % (html_escape(page), html_escape(page)) for page in page_history]
+            html_links = ['<li><a href="%s" target="_blank">%s</a></li>' % (html_escape(page),
+                                                                            html_escape(page)) for page in page_history]
             message_body = '<ul>%s</ul>' % (''.join(html_links))
         self._send_transient_message(self.env['res.partner'].browse(pid), message_body)
 
@@ -154,7 +163,8 @@ class MailChannel(models.Model):
                 return
             # Notify that the visitor has left the conversation
             self.message_post(author_id=self.env.ref('base.partner_root').id,
-                              body=self._get_visitor_leave_message(**kwargs), message_type='comment', subtype_xmlid='mail.mt_comment')
+                              body=self._get_visitor_leave_message(**kwargs),
+                              message_type='comment', subtype_xmlid='mail.mt_comment')
 
     # Rating Mixin
 

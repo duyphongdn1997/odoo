@@ -9,68 +9,90 @@
             Template rendering the external HTML support page
         -->
         <template id="support_page" name="Livechat : Support Page">
-            &lt;!DOCTYPE html&gt;
-            <html style="height: 100%">
+            <html lang="en">
                 <head>
-                    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-                    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-                    <title><t t-esc="channel_name"/> Livechat Support Page</title>
+                    <script src="https://cdn.jsdelivr.net/npm/rasa-webchat@1.0.1/lib/index.js" async=""> </script>
+                    <title>JAVisBe Bot</title>
+                </head>
+                <a id="sid"><t t-esc="sender_id"/></a>
+                <a id="title_box"><t t-esc="title"/></a>
+                <body>
+                    <script>!(
+                                function (require) {
+                                    let e = document.createElement("script"),
+                                        t = document.head || document.getElementsByTagName("head")[0];
+                                    let sid = document.getElementById("sid").value;
+                                    let title_box = document.getElementById("title_box").value;
+                                    (e.src = "https://cdn.jsdelivr.net/npm/rasa-webchat@1.0.1/lib/index.js"),
+                                        (e.async = !0),
+                                        (e.onload = () => {
+                                            window.WebChat.default({
+                                                    customData: {
+                                                        "sender_id": sid,
+                                                    },
+                                                    socketUrl: "http://localhost:5005",
+                                                    fullScreenMode: false,
+                                                    showCloseButton: true,
+                                                    showFullScreenButton: true,
+                                                    showMessageDate: true,
+                                                    // badge: 1,
+                                                    customMessageDelay: (message) => {
+                                                        let delay = message.length * 20;
+                                                        if (delay > 3000) delay = 3000;
+                                                        return delay;
+                                                    },
+                                                    displayUnreadCount: true,
+                                                    //initPayload:,
+                                                    title: title_box,
+                                                    sub
+                                                    profileAvatar: "static/src/img/bot.png",
+                                                    params: {
+                                                            "images": {
+                                                                "dims": {
+                                                                    "width": 300,
+                                                                    "height": 200,
+                                                                      }
+                                                                    }
+                                                            }
+                                                    // add other props here
+                                                },
+                                                null
+                                            );
+                                        }),
+                                        t.insertBefore(e, t.firstChild);
+                                })
+                            ();
+                    </script>
 
-                    <!-- Call the external Bundle to render the css, js, and js loader tags -->
-                    <t t-out="channel.script_external"/>
 
-                    <style type="text/css">
-                        body {
-                            height: 100%;
-                            font-size: 16px;
-                            font-weight: 400;
-                            font-family: "Lato", "Lucida Grande", "Helvetica neue", "Helvetica", "Verdana", "Arial", sans-serif;
-                            overflow: hidden;
-                            overflow-y: auto;
-                            display: block;
-                            margin: 0;
-                            padding: 0;
-                            border: none;
-                            width: 100%;
-                            height: 100%;
-                            background: #C9C8E0;
-                            background-image: -webkit-linear-gradient(top, #7c7bad, #ddddee);
-                            background-image: -moz-linear-gradient(top, #7c7bad, #ddddee);
-                            background-image: -ms-linear-gradient(top, #7c7bad, #ddddee);
-                            background-image: -o-linear-gradient(top, #7c7bad, #ddddee);
-                            background-image: linear-gradient(to bottom, #7c7bad, #ddddee);
-                            filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#7c7bad', endColorstr='#ddddee',GradientType=0 );
-                            -webkit-background-size: cover;
-                            -moz-background-size: cover;
-                            -o-background-size: cover;
-                            background-size: cover;
-                            background-repeat: no-repeat;
-                            background-attachment: fixed;
+                    <div id="rasaWebchatPro">
+                        <div class="" style="">
+                            <div class="rw-widget-container">
+                                <button type="button" class="rw-launcher">
+                                    <div class="rw-open-launcher__container">
+                                        <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIj8+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDUxMiA1MTI7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iNTEycHgiIGhlaWdodD0iNTEycHgiIGNsYXNzPSIiPjxnIHRyYW5zZm9ybT0ibWF0cml4KDAuNzMyMzA0IDAgMCAwLjczMjMwNCA2OC41MzAzIDEyNC4yNTQpIj48cGF0aCBkPSJNNDQ4LDBINjRDMjguNzA0LDAsMCwyOC43MDQsMCw2NHYyODhjMCwzNS4yOTYsMjguNzA0LDY0LDY0LDY0aDMydjgwICBjMCw2LjIwOCwzLjU4NCwxMS44NzIsOS4yMTYsMTQuNDk2YzIuMTQ0LDAuOTkyLDQuNDgsMS41MDQsNi43ODQsMS41MDRjMy42OCwwLDcuMzI4LTEuMjgsMTAuMjQtMy43MTJMMjMyLjk5Miw0MTZINDQ4ICBjMzUuMjk2LDAsNjQtMjguNzA0LDY0LTY0VjY0QzUxMiwyOC43MDQsNDgzLjI5NiwwLDQ0OCwweiIgZGF0YS1vcmlnaW5hbD0iIzIxOTZGMyIgY2xhc3M9ImFjdGl2ZS1wYXRoIiBkYXRhLW9sZF9jb2xvcj0iIzIxOTZGMyIgZmlsbD0iI0Y2RjZGNiIvPjwvZz4gPC9zdmc+Cg==" class="rw-open-launcher" alt=""> </img>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <style>@keyframes default-botfront-blinker-animation {
+                        0% {
+                        outline-color: rgba(0,255,0,0);
                         }
-                        .main {
-                            position: absolute;
-                            opacity: 0;
-                            top: 50%;
-                            width: 100%;
-                            margin-top: -150px;
-                            color: white;
-                            text-shadow: 0 1px 0 rgba(34, 52, 72, 0.2);
-                            text-align: center;
+                        49% {
+                        outline-color: rgba(0,255,0,0);
                         }
-                        .main h1 {
-                            font-size: 54px;
+                        50% {
+                        outline-color:green;
                         }
-                        .main div {
-                            font-style: italic;
+                        100% {
+                        outline-color: green;
+                        }
                         }
                     </style>
-                </head>
-
-                <body>
-                     <div class="main" style="opacity: 1;">
-                        <h1 class="channel_name"><t t-esc="channel.name"/></h1>
-                        <div>Website Live Chat Powered by <strong>Odoo</strong>.</div>
-                    </div>
+                    <textarea tab-index="-1" aria-hidden="true"
+                              style="min-height: 0px !important; max-height: none !important; height: 0px !important; visibility: hidden !important; overflow: hidden !important; position: absolute !important; z-index: -1000 !important; top: 0px !important; right: 0px !important; letter-spacing: normal; line-height: normal; font-family: Inter, sans-serif; font-weight: 400; font-size: 16px; font-style: normal; tab-size: 8; text-rendering: auto; text-transform: none; width: 306px; text-indent: 0px; padding: 2px 2px 2px 15px; border-width: 0px; box-sizing: content-box;"> </textarea>
                 </body>
             </html>
         </template>
@@ -82,7 +104,7 @@
             <!-- css style -->
             <link t-attf-href="{{url}}/im_livechat/external_lib.css" rel="stylesheet"/>
             <!-- js of all the required lib (internal and external) -->
-            <script t-attf-src="{{url}}/im_livechat/external_lib.js" type="text/javascript" />
+            <script t-attf-src="{{url}}/im_livechat/external_lib.js" type="text/javascript"/>
             <!-- the loader -->
             <script t-attf-src="{{url}}/im_livechat/loader/{{channel_id}}" type="text/javascript"/>
         </template>
@@ -91,27 +113,27 @@
         <template id="loader" name="Livechat : Javascript appending the livechat button">
             <t t-translation="off">
                 window.addEventListener('load', function () {
-                    <t t-if="web_session_required">
+                <t t-if="web_session_required">
                     odoo.define('web.session', function (require) {
-                        var Session = require('web.Session');
-                        var modules = odoo._modules;
-                        return new Session(undefined, "<t t-esc="info['server_url']"/>", {modules:modules, use_cors: true});
+                    var Session = require('web.Session');
+                    var modules = odoo._modules;
+                    return new Session(undefined, "<t t-esc="info['server_url']"/>", {modules:modules, use_cors: true});
                     });
-                    </t>
+                </t>
 
-                    odoo.define('im_livechat.livesupport', function (require) {
-            <t t-if="info['available']" t-translation="off">
-                        var rootWidget = require('root.widget');
-                        var im_livechat = require('im_livechat.legacy.im_livechat.im_livechat');
-                        var button = new im_livechat.LivechatButton(
-                            rootWidget,
-                            "<t t-esc="info['server_url']"/>",
-                            <t t-out="json.dumps(info.get('options', {}))"/>
-                        );
-                        button.appendTo(document.body);
-                        window.livechat_button = button;
-            </t>
-                    });
+                odoo.define('im_livechat.livesupport', function (require) {
+                <t t-if="info['available']" t-translation="off">
+                    var rootWidget = require('root.widget');
+                    var im_livechat = require('im_livechat.legacy.im_livechat.im_livechat');
+                    var button = new im_livechat.LivechatButton(
+                    rootWidget,
+                    "<t t-esc="info['server_url']"/>",
+                    <t t-out="json.dumps(info.get('options', {}))"/>
+                    );
+                    button.appendTo(document.body);
+                    window.livechat_button = button;
+                </t>
+                });
                 });
             </t>
         </template>

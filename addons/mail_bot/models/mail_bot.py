@@ -9,14 +9,15 @@ import logging
 import pytz
 import requests
 from markdown2 import Markdown
+from odoo.http import request
 
-from odoo import models
+from odoo import models, sql_db
 
-PARSE_MESSAGE_URL = "http://192.168.9.51:5005/model/parse"
-ADD_MESSAGE_URL = "http://192.168.9.51:5005/conversations/{}/messages"
+PARSE_MESSAGE_URL = "http://localhost:5005/model/parse"
+ADD_MESSAGE_URL = "http://localhost:5005/conversations/{}/messages"
 ADD_EVENT_URL = "http://localhost:5005/conversations/{}/tracker/events"
-PREDICT_NEXT_ACTION_URL = "http://192.168.9.51:5005/conversations/{}/predict"
-RUN_ACTION_URL = "http://192.168.9.51:5005/conversations/{}/execute?output_channel=latest"
+PREDICT_NEXT_ACTION_URL = "http://localhost:5005/conversations/{}/predict"
+RUN_ACTION_URL = "http://localhost:5005/conversations/{}/execute?output_channel=latest"
 markdowner = Markdown()
 _logger = logging.getLogger(__name__)
 
@@ -69,6 +70,14 @@ class MailBot(models.AbstractModel):
                     if messages is None:
                         return False
                     else:
+                        if any(["buttons" in message.keys() for message in messages]):
+                            for message in messages:
+                                buttons = message["buttons"] if "buttons" in message.keys() else []
+                                for button in buttons:
+                                    # query = f"INSERT INTO mail_shortcode (source, substitution, create_uid) " \
+                                    #         f"VALUES ('{button['title']}', '{button['payload']}', '1')"
+                                    # self._cr.execute(query=query)
+                                    return self.create_buttons()
                         if any(["image" in message.keys() for message in messages]):
                             html_answer_string = ""
                             for message in messages:
@@ -86,6 +95,16 @@ class MailBot(models.AbstractModel):
             except:
                 return False
         return False
+
+    def create_buttons(self):
+        """
+        This method used to create some button
+        """
+        return '<button class="btn" t-on-click="myFunction()">Cancel</button><p ' \
+               'id="demo"></p><p>A function is triggered when the button is clicked. ' \
+               'The function outputs some text in a p element with id="demo".' \
+               '</p><script>function myFunction() ' \
+               '{  document.getElementById("demo").innerHTML = "Hello World";}</script>'
 
     @staticmethod
     def datetime2timestamp(dt, location="Asia/Ho_Chi_Minh"):
@@ -124,7 +143,7 @@ class MailBot(models.AbstractModel):
         This method used to add a message parsed to tracker store.
         """
         try:
-            url = ADD_MESSAGE_URL.format(values['author_id'])
+            url = ADD_MESSAGE_URL.format(request.session.session_token)
 
             payload = json.dumps({
                 "text": body,
@@ -148,7 +167,7 @@ class MailBot(models.AbstractModel):
         This method used to predict the next action by RASA
         """
         try:
-            url = PREDICT_NEXT_ACTION_URL.format(values['author_id'])
+            url = PREDICT_NEXT_ACTION_URL.format(request.session.session_token)
             response = requests.request("POST", url)
             if response.status_code == 200:
                 response = response.json()
@@ -164,7 +183,7 @@ class MailBot(models.AbstractModel):
         """
 
         try:
-            url = RUN_ACTION_URL.format(values['author_id'])
+            url = RUN_ACTION_URL.format(request.session.session_token)
 
             payload = json.dumps({
                 "name": action_name,
@@ -184,12 +203,12 @@ class MailBot(models.AbstractModel):
         except:
             return None
 
-    def _request_append_action_listen_to_a_tracker(self):
+    def _request_append_action_listen_to_a_tracker(self, values):
         """
         This method used to append a action listen to the tracker store.
         """
         try:
-            url = ADD_EVENT_URL
+            url = ADD_EVENT_URL.format(request.session.session_token)
 
             payload = json.dumps([
                 {
@@ -210,12 +229,12 @@ class MailBot(models.AbstractModel):
         except:
             return None
 
-    def _request_append_events_to_a_tracker(self, events, type_event):
+    def _request_append_events_to_a_tracker(self, events, type_event, values):
         """
         This method used to append a event or events to the tracker store.
         """
         try:
-            url = ADD_EVENT_URL
+            url = ADD_EVENT_URL.format(request.session.session_token)
 
             payload = json.dumps([
                 {
