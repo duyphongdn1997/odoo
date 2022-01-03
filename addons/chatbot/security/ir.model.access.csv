@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_chatbot_channel,chatbot.channel,model_chatbot_channel,,1,0,0,0
+access_chatbot_channel_user,chatbot.channel.user,model_chatbot_channel,chatbot_group_user,1,1,1,0
+access_chatbot_channel_manager,chatbot.channel.manager,model_chatbot_channel,chatbot_group_manager,1,1,1,1
+access_chatbot_channel_rule,chatbot.channel.rule,model_chatbot_channel_rule,,1,0,0,0
+access_chatbot_channel_rule_user,chatbot.channel.rule,model_chatbot_channel_rule,chatbot_group_user,1,1,1,0
+access_chatbot_channel_rule_manager,chatbot.channel.rule,model_chatbot_channel_rule,chatbot_group_manager,1,1,1,1
