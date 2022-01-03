@@ -165,20 +165,20 @@ class LivechatController(http.Controller):
         if mail_channel:
             mail_channel._close_livechat_session()
 
-    @http.route('/im_livechat/chatbot', type='http', auth='public')
-    def support_page(self, **kwargs):
+    @http.route('/im_livechat/chatbot/<int:channel_id>', type='http', auth='public')
+    def support_page(self, channel_id, **kwargs):
         user_id = None
         country_id = None
         if request.session.uid:
             user_id = request.env.user.id
             country_id = request.env.user.country_id.id
         channel_info = request.env["im_livechat.channel"].with_context(lang=False).sudo().browse(
-            1)._open_livechat_mail_channel("", None, user_id, country_id)
+            channel_id)._open_livechat_mail_channel("", None, user_id, country_id)
         if not channel_info:
             sender_id = "Visitor"
             title_box = "Javisbe - Visitor"
         else:
             sender_id = channel_info["members"][0]["name"]
             title_box = channel_info["name"]
-        return request.render('im_livechat.support_page', {"sender_id": sender_id, "channel": 1,
+        return request.render('im_livechat.support_page', {"sender_id": sender_id, "channel": channel_id,
                                                            "title": title_box})

@@ -18,81 +18,49 @@
                 <a id="title_box"><t t-esc="title"/></a>
                 <body>
                     <script>!(
-                                function (require) {
-                                    let e = document.createElement("script"),
-                                        t = document.head || document.getElementsByTagName("head")[0];
-                                    let sid = document.getElementById("sid").value;
-                                    let title_box = document.getElementById("title_box").value;
-                                    (e.src = "https://cdn.jsdelivr.net/npm/rasa-webchat@1.0.1/lib/index.js"),
-                                        (e.async = !0),
-                                        (e.onload = () => {
-                                            window.WebChat.default({
-                                                    customData: {
-                                                        "sender_id": sid,
-                                                    },
-                                                    socketUrl: "http://localhost:5005",
-                                                    fullScreenMode: false,
-                                                    showCloseButton: true,
-                                                    showFullScreenButton: true,
-                                                    showMessageDate: true,
-                                                    // badge: 1,
-                                                    customMessageDelay: (message) => {
-                                                        let delay = message.length * 20;
-                                                        if (delay > 3000) delay = 3000;
-                                                        return delay;
-                                                    },
-                                                    displayUnreadCount: true,
-                                                    //initPayload:,
-                                                    title: title_box,
-                                                    sub
-                                                    profileAvatar: "static/src/img/bot.png",
-                                                    params: {
-                                                            "images": {
-                                                                "dims": {
-                                                                    "width": 300,
-                                                                    "height": 200,
-                                                                      }
-                                                                    }
-                                                            }
-                                                    // add other props here
-                                                },
-                                                null
-                                            );
-                                        }),
-                                        t.insertBefore(e, t.firstChild);
-                                })
-                            ();
+                        function (require) {
+                            let e = document.createElement("script"),
+                                t = document.head || document.getElementsByTagName("head")[0];
+                            var sid = document.getElementById("sid").innerHTML;
+                            var title_box = document.getElementById('title_box').innerHTML;
+                            (e.src = "https://cdn.jsdelivr.net/npm/rasa-webchat@1.0.1/lib/index.js"),
+                                (e.async = !0),
+                                (e.onload = () => {
+                                    window.WebChat.default({
+                                            customData: {
+                                                "sender_id": sid,
+                                            },
+                                            socketUrl: "http://localhost:5005",
+                                            fullScreenMode: false,
+                                            showCloseButton: true,
+                                            showFullScreenButton: true,
+                                            showMessageDate: true,
+                                            // badge: 1,
+                                            customMessageDelay: (message) => {
+                                                let delay = message.length * 20;
+                                                if (delay > 3000) delay = 3000;
+                                                return delay;
+                                            },
+                                            displayUnreadCount: true,
+                                            //initPayload:,
+                                            title: String(title_box),
+                                            params: {
+                                                "images": {
+                                                    "dims": {
+                                                        "width": 300,
+                                                        "height": 200,
+                                                    }
+                                                }
+                                            }
+                                            // add other props here
+                                        },
+                                        null
+                                    );
+                                }),
+                                t.insertBefore(e, t.firstChild);
+                        })
+                    ();
                     </script>
-
-
-                    <div id="rasaWebchatPro">
-                        <div class="" style="">
-                            <div class="rw-widget-container">
-                                <button type="button" class="rw-launcher">
-                                    <div class="rw-open-launcher__container">
-                                        <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIj8+CjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmVyc2lvbj0iMS4xIiBpZD0iQ2FwYV8xIiB4PSIwcHgiIHk9IjBweCIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDUxMiA1MTI7IiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iNTEycHgiIGhlaWdodD0iNTEycHgiIGNsYXNzPSIiPjxnIHRyYW5zZm9ybT0ibWF0cml4KDAuNzMyMzA0IDAgMCAwLjczMjMwNCA2OC41MzAzIDEyNC4yNTQpIj48cGF0aCBkPSJNNDQ4LDBINjRDMjguNzA0LDAsMCwyOC43MDQsMCw2NHYyODhjMCwzNS4yOTYsMjguNzA0LDY0LDY0LDY0aDMydjgwICBjMCw2LjIwOCwzLjU4NCwxMS44NzIsOS4yMTYsMTQuNDk2YzIuMTQ0LDAuOTkyLDQuNDgsMS41MDQsNi43ODQsMS41MDRjMy42OCwwLDcuMzI4LTEuMjgsMTAuMjQtMy43MTJMMjMyLjk5Miw0MTZINDQ4ICBjMzUuMjk2LDAsNjQtMjguNzA0LDY0LTY0VjY0QzUxMiwyOC43MDQsNDgzLjI5NiwwLDQ0OCwweiIgZGF0YS1vcmlnaW5hbD0iIzIxOTZGMyIgY2xhc3M9ImFjdGl2ZS1wYXRoIiBkYXRhLW9sZF9jb2xvcj0iIzIxOTZGMyIgZmlsbD0iI0Y2RjZGNiIvPjwvZz4gPC9zdmc+Cg==" class="rw-open-launcher" alt=""> </img>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <style>@keyframes default-botfront-blinker-animation {
-                        0% {
-                        outline-color: rgba(0,255,0,0);
-                        }
-                        49% {
-                        outline-color: rgba(0,255,0,0);
-                        }
-                        50% {
-                        outline-color:green;
-                        }
-                        100% {
-                        outline-color: green;
-                        }
-                        }
-                    </style>
-                    <textarea tab-index="-1" aria-hidden="true"
-                              style="min-height: 0px !important; max-height: none !important; height: 0px !important; visibility: hidden !important; overflow: hidden !important; position: absolute !important; z-index: -1000 !important; top: 0px !important; right: 0px !important; letter-spacing: normal; line-height: normal; font-family: Inter, sans-serif; font-weight: 400; font-size: 16px; font-style: normal; tab-size: 8; text-rendering: auto; text-transform: none; width: 306px; text-indent: 0px; padding: 2px 2px 2px 15px; border-width: 0px; box-sizing: content-box;"> </textarea>
                 </body>
             </html>
         </template>
